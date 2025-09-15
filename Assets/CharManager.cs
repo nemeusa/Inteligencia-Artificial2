@@ -16,16 +16,23 @@ public class CharManager : MonoBehaviour
             {
                 Debug.Log(character);
             }
+                //Debug.Log(allNames);
         }
     }
-
-    public 
 
     public IEnumerable<string> CharNames()
     {
         var namesChar = _characters.Select(nChar => nChar._name);
         var hpChar = _characters.Select(c => c._hp.ToString());
-        var datesChar = namesChar + hpChar;
-        return namesChar;
+        //Generator lazy: devuelve los nombres uno por uno
+        foreach( var nam in namesChar)
+            yield return nam;
     }
+
+    //public IEnumerable<Health> Life()
+    //{
+    //    //var statesHP = _characters.Select(c => c._hp = c._maxHP);
+    //    //var ola = statesHP == Health.OK ? 10 : Health.OK;
+    //    //return statesHP < 10;
+    //}
 }

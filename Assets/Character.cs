@@ -6,7 +6,7 @@ using UnityEngine;
 public class Character : MonoBehaviour
 {
     public string _name;
-    [SerializeField] int _maxHP;
+    public int _maxHP;
     public int _hp;
     [SerializeField] Color _color;
     [SerializeField] Vector2 _position;
@@ -31,9 +31,9 @@ public class Character : MonoBehaviour
         this._facing = facing;
     }
 
+}
     public enum Health { Damaged, OK, NearDeath };
     public enum Faction { Ally, Neutral, Enemy };
     public enum Decision { Ignore, Follow, Attack }
 
-}
 
