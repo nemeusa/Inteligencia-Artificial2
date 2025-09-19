@@ -8,17 +8,18 @@ public class Character : MonoBehaviour
     public string _name;
     public int _maxHP;
     public int _hp;
+    public int yearsOld;
+    public float yearsSpeed;
     [SerializeField] Color _color;
     [SerializeField] Vector2 _position;
     [SerializeField] Vector2 _facing;
     //[SerializeField] TextMeshPro textLife;
     [SerializeField] TMP_Text textLife;
 
-
-
     private void Update()
     {
-        textLife.text = _name + ": " + _hp + "%";
+        //yearsOld += (yearsSpeed * Time.deltaTime);
+        //textLife.text = _name + ": " + yearsOld + " years old";
     }
 
     public Character(string name, int maxHP, Color color, Vector2 position, Vector2 facing)
@@ -33,7 +34,8 @@ public class Character : MonoBehaviour
 
 }
     public enum Health { Damaged, OK, NearDeath };
-    public enum Faction { Ally, Neutral, Enemy };
-    public enum Decision { Ignore, Follow, Attack }
+   // public enum Faction { Ally, Neutral, Enemy };
+   // public enum Decision { Ignore, Follow, Attack }
+   public enum Age { Baby, Young, Adult, Old}
 
 
