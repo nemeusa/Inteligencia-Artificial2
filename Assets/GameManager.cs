@@ -13,6 +13,7 @@ public class GameManager : MonoBehaviour
     public int maxCampfires = 4;
 
     public List<Transform> spawnPoints;
+    public List<Transform> freeSpawnPoints;
 
     // Lista concreta que también implementa IEnumerable<Survivor>
     public List<SurvivorChar> survivors = new List<SurvivorChar>();
@@ -21,12 +22,19 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+        freeSpawnPoints = new List<Transform>(spawnPoints);
+
         // Lanzamos la coroutine (time-slicing)
         //StartCoroutine(SpawnSurvivorsCoroutine());
         for (int i = 0; i < 3; i++)
         {
             SpawnSurvivor();
         }
+    }
+
+    private void Update()
+    {
+        //StartCoroutine(SpawnSurvivorCoroutine());
     }
 
     // -------------------------
@@ -41,14 +49,16 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        if (spawnPoints.Count == 0)
+        if (freeSpawnPoints.Count == 0)
         {
             Debug.LogWarning("No hay puntos de spawn asignados.");
             return;
         }
 
+        int index = Random.Range(0, freeSpawnPoints.Count);
+
         // Elegir un spawn random
-        Transform spawn = spawnPoints[Random.Range(0, spawnPoints.Count)];
+        Transform spawn = freeSpawnPoints[index];
 
         // Instanciar
         GameObject survivorObj = Instantiate(survivorPrefab, spawn.position, Quaternion.identity);
@@ -59,35 +69,33 @@ public class GameManager : MonoBehaviour
 
         // Agregar a la lista
         survivors.Add(survivor);
+        freeSpawnPoints.RemoveAt(index);
     }
 
-    //IEnumerator SpawnSurvivorsCoroutine()
+    //IEnumerator SpawnSurvivorCoroutine(System.Action<List<int>> callback)
     //{
-    //    // Usamos un generator que produce datos
-    //    foreach (var data in GenerateSurvivorData())
+    //    List<SurvivorChar> collection = new List<SurvivorChar>();
+
+    //    while (count > 0)
+
     //    {
-    //        if (survivors.Count >= maxSurvivors) yield break;
 
-    //        // Instanciamos prefab y asignamos desde inspector/script
-    //        GameObject obj = Instantiate(survivorPrefab, GetRandomPosition(), Quaternion.identity);
-    //        SurvivorChar s = obj.GetComponent<SurvivorChar>();
-    //        s.survivorName = data.name;
-    //        s.age = data.age;
+    //        count;
 
-    //        // ejemplo de evento inicial
-    //        s.events.Add("Spawned at time " + Time.time);
+    //        collection.Add(spawnMethod());
 
-    //        survivors.Add(s);
+    //        yield return new WaitForSeconds(time);
 
-    //        // time-slicing: esperamos 2 segundos antes de crear al siguiente
-    //        yield return new WaitForSeconds(2f);
     //    }
+
+    //    callback(collection);
     //}
 
-    // -------------------------
-    // Generator (yield) -> devuelve pares (name, age)
-    // Esto es un generator que retorna IEnumerable<(string,int)>
-    // -------------------------
+    //IEnumerator SpawnSurvivorDefiinitivo(System.Action<List<int>> callback)
+    //{
+
+    //}
+
     IEnumerable<(string name, int age)> GenerateSurvivorData()
     {
         for (int i = 0; i < maxSurvivors; i++)
@@ -103,11 +111,6 @@ public class GameManager : MonoBehaviour
         return new Vector3(r.x, r.y, 0f) + transform.position;
     }
 
-    // -------------------------
-    // Ejemplos de funciones LINQ que retornan IEnumerable (uso explícito de IEnumerable)
-    // -------------------------
-
-    // Devuelve un IEnumerable<Survivor> (Grupo 1: Where)
     public IEnumerable<SurvivorChar> GetAliveSurvivors()
     {
         // Where es del Grupo 1

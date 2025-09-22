@@ -23,6 +23,7 @@ public class SurvivorChar : MonoBehaviour
     private void Start()
     {
         ageDirection = Random.Range(0, 2) == 0 ? 1 : -1;
+        age = ageDirection == 1 ? Random.Range(1, 25) : Random.Range(60, 79);
         // Arrancamos la corutina que suma la edad
         StartCoroutine(AgeRoutine());
     }
