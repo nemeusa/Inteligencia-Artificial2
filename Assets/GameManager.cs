@@ -1,10 +1,15 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using TMPro;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
+    [SerializeField] private TMP_Text finalReportText; 
+    private bool gameEnded = false;
+
     public GameObject survivorPrefab;
 
     public int maxSurvivors = 8;
@@ -36,55 +41,8 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
+        if (Input.GetKeyDown(KeyCode.E)) EndGame2();
     }
-
-    
-    //public void SpawnSurvivor()
-    //{
-    //    if (survivors.Count >= maxSurvivors)
-    //    {
-    //        Debug.Log("hay muchos sobrevivientes");
-    //        return;
-    //    }
-
-    //    if (freeSpawnPoints.Count == 0)
-    //    {
-    //        Debug.LogWarning("no hay mas spawns");
-    //        return;
-    //    }
-
-    //    int index = Random.Range(0, freeSpawnPoints.Count);
-
-    //    Transform spawn = freeSpawnPoints[index];
-
-        
-    //    GameObject survivorObj = Instantiate(survivorPrefab, spawn.position, Quaternion.identity);
-
-    //    SurvivorChar survivor = survivorObj.GetComponent<SurvivorChar>();
-    //    survivor.survivorName = "Survivor " + Random.Range(1, 100);
-
-    //    survivors.Add(survivor);
-    //    freeSpawnPoints.RemoveAt(index);
-    //}
-
-    //IEnumerator SpawnSurvivorCoroutine(System.Action<List<int>> callback)
-    //{
-    //    List<SurvivorChar> collection = new List<SurvivorChar>();
-
-    //    while (count > 0)
-
-    //    {
-
-    //        count;
-
-    //        collection.Add(spawnMethod());
-
-    //        yield return new WaitForSeconds(time);
-
-    //    }
-
-    //    callback(collection);
-    //}
 
     IEnumerator SpawnSurvivorDefiinitivo(System.Action<List<SurvivorChar>> callback)
     {
@@ -110,11 +68,18 @@ public class GameManager : MonoBehaviour
     private SurvivorChar SpawnOneSurvivor()
     {
         int index = Random.Range(0, freeSpawnPoints.Count);
-        Transform spawn = spawnPoints[index];
+        Transform spawn = freeSpawnPoints[index];
 
         GameObject obj = Instantiate(survivorPrefab, spawn.position, Quaternion.identity);
         SurvivorChar survivor = obj.GetComponent<SurvivorChar>();
         survivor.survivorName = "Survivor " + Random.Range(1, 100);
+
+        if (allNames.Count > 0)
+        {
+            int nameIndex = Random.Range(0, allNames.Count);
+            survivor.survivorName = allNames[nameIndex];
+            allNames.RemoveAt(nameIndex);
+        }
 
         survivors.Add(survivor);
         freeSpawnPoints.RemoveAt(index);
@@ -130,12 +95,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    Vector3 GetRandomPosition()
-    {
-        Vector2 r = Random.insideUnitCircle * 2f;
-        return new Vector3(r.x, r.y, 0f) + transform.position;
-    }
-
     public IEnumerable<SurvivorChar> GetAliveSurvivors()
     {
         //grupo 1 linq
@@ -147,7 +106,7 @@ public class GameManager : MonoBehaviour
         //grupo 2 linq
         return GetAliveSurvivors()
             .OrderBy(s => s.age)  
-            .Select(s => s.survivorName); 
+            .Select(s => s.survivorName + "(" + s.age + ")"); 
     }
 
     public List<SurvivorChar> GetYoungestThree()
@@ -179,25 +138,46 @@ public class GameManager : MonoBehaviour
         return survivors.Any(s => s.isAlive); 
     }
 
-  
-    public void EndGame()
-    {
-        var finalOrdered = GetAliveSurvivors()
-            .OrderByDescending(s => s.age) 
-            .Select(s => new { s.survivorName, s.age, Alive = s.isAlive }) // anonimous type
-            .ToList(); 
 
-        // mostrar resultado
-        foreach (var r in finalOrdered)
+    void EndGame2()
+    {
+        if (gameEnded) return; 
+        gameEnded = true;
+
+        var survivorsData = survivors.Select(s => new
         {
-            Debug.Log($"Nombre: {r.survivorName}, Edad: {r.age}, Vivo: {r.Alive}");
+            s.survivorName,
+            s.age,
+            Alive = s.isAlive
+        }).ToList();
+
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("=== RESULTADO FINAL ===");
+        sb.AppendLine($"Tiempo de juego: {Time.time:F1} seg");
+        sb.AppendLine($"Suma total de edades: {SumAgesAggregate()}");
+        sb.AppendLine();
+        sb.AppendLine("Sobrevivientes:");
+        foreach (var s in survivorsData)
+        {
+            string status = s.Alive ? "VIVO" : "MUERTO";
+            sb.AppendLine($"{s.survivorName} | Edad: {s.age} | {status}");
         }
 
-        // aggregate
-        Debug.Log("Vitalidad total (aggregate): " + SumAgesAggregate());
+        sb.AppendLine();
+        sb.AppendLine("Ordenados por edad:");
+        sb.AppendLine(string.Join(", ", GetNamesOrderedByAge()));
 
-        // selectMany demo
-        foreach (var ev in GetAllEvents())
-            Debug.Log("Evento: " + ev);
+        finalReportText.text = sb.ToString();
+
+        gameEnded = false;
     }
+
+    private List<string> allNames = new List<string>()
+    {
+        "Aiden","Lucas","Mateo","Benjamin","Isabella","Emma","Sophia","Mia","Amelia","Olivia",
+        "Liam","Noah","Ethan","Mason","Logan","James","Oliver","Elijah","Alexander","Jacob",
+        "Michael","Daniel","Henry","Sebastian","Jack","Levi","Owen","Wyatt","Julian","Leo",
+        "Victoria","Grace","Aria","Scarlett","Chloe","Layla","Zoe","Hannah","Nora","Stella",
+        "Aurora","Penelope","Hazel","Ellie","Camila","Luna","Riley","Savannah","Violet","Nova"
+    };
 }
