@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
@@ -22,6 +23,15 @@ public class GameManager : MonoBehaviour
 
     private float gameDuration = 300f;
 
+    [Header("Comida")]
+    [SerializeField] GameObject foodPrefab;
+    [SerializeField] List<Transform> foodSpawnPoints;
+    [SerializeField] Button spawnFoodButton;
+
+    [Header("Clicker")]
+    public int clicksNeeded = 3;
+    private int currentClicks = 0; 
+
     void Start()
     {
         freeSpawnPoints = new List<Transform>(spawnPoints);
@@ -37,6 +47,9 @@ public class GameManager : MonoBehaviour
             foreach (var s in finalList)
                 Debug.Log($"- {s.survivorName} ({s.age})");
         }));
+
+        if (spawnFoodButton != null)
+            spawnFoodButton.onClick.AddListener(OnClickSpawnFood);
     }
 
     private void Update()
@@ -172,12 +185,34 @@ public class GameManager : MonoBehaviour
         gameEnded = false;
     }
 
+    void OnClickSpawnFood()
+    {
+        currentClicks++;
+
+        if (currentClicks >= clicksNeeded)
+        {
+            SpawnFood();
+            currentClicks = 0;
+        }
+    }
+
+    void SpawnFood()
+    {
+        if (foodSpawnPoints.Count == 0 || foodPrefab == null) return;
+
+        int index = Random.Range(0, foodSpawnPoints.Count);
+        Transform spawnPoint = foodSpawnPoints[index];
+
+        Instantiate(foodPrefab, spawnPoint.position, Quaternion.identity);
+        Debug.Log("Comida spawneada!");
+    }
+
     private List<string> allNames = new List<string>()
     {
         "Aiden","Lucas","Mateo","Benjamin","Isabella","Emma","Sophia","Mia","Amelia","Olivia",
         "Liam","Noah","Ethan","Mason","Logan","James","Oliver","Elijah","Alexander","Jacob",
         "Michael","Daniel","Henry","Sebastian","Jack","Levi","Owen","Wyatt","Julian","Leo",
-        "Victoria","Grace","Aria","Scarlett","Chloe","Layla","Zoe","Hannah","Nora","Stella",
+        "Victoria","Grace","Aria","Scarlett","Chloe","Layla","Denise","Hannah","Nora","Stella",
         "Aurora","Penelope","Hazel","Ellie","Camila","Luna","Riley","Savannah","Violet","Nova"
     };
 }

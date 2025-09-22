@@ -14,7 +14,8 @@ public class SurvivorChar : MonoBehaviour
     public int ageDirection; 
     public float ageSpeed = 1f;
 
-    [SerializeField] TMP_Text text;
+    [SerializeField] TMP_Text textName;
+    [SerializeField] TMP_Text textAge;
 
     // registro eventos para usar SelectMany
     public List<string> events = new List<string>();
@@ -25,11 +26,18 @@ public class SurvivorChar : MonoBehaviour
         ageDirection = Random.Range(0, 2) == 0 ? 1 : -1;
         age = ageDirection == 1 ? Random.Range(1, 25) : Random.Range(60, 79);
         StartCoroutine(AgeRoutine());
+        StartCoroutine(TextPulse());
     }
 
     private void Update()
     {
-        text.text = survivorName + " edad: " + age;
+        textName.text = survivorName + " edad: ";
+        textAge.text = $"{age}";
+        bool isTall = ageDirection == 1 ? true : false;
+
+        if (isTall) textAge.color = age >= 30 && age < 60 ? Color.yellow : age >= 60 ? Color.red : Color.green;
+        else textAge.color = age <= 50 && age > 20 ? Color.yellow : age < 20 ? Color.red : Color.green;
+
     }
 
     private IEnumerator AgeRoutine()
@@ -71,5 +79,17 @@ public class SurvivorChar : MonoBehaviour
     {
         foreach (var e in events)
             yield return e;
+    }
+
+    private IEnumerator TextPulse()
+    {
+        float minSize = 25;
+        float maxSize = 27;
+        while (true)
+        {
+            float t = Mathf.PingPong(Time.time, 1f);
+            textAge.fontSize = Mathf.Lerp(minSize, maxSize, t);
+            yield return null;
+        }
     }
 }
