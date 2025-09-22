@@ -11,12 +11,12 @@ public class SurvivorChar : MonoBehaviour
     public bool isAlive = true;
 
     [Header("Velocidad de edad")]
-    public int ageDirection; // 1 = avanzar, -1 = retroceder
-    public float ageSpeed = 1f;  // segundos entre cada cambio de edad
+    public int ageDirection; 
+    public float ageSpeed = 1f;
 
     [SerializeField] TMP_Text text;
 
-    // Registro simple de eventos para poder usar SelectMany
+    // registro eventos para usar SelectMany
     public List<string> events = new List<string>();
 
 
@@ -24,7 +24,6 @@ public class SurvivorChar : MonoBehaviour
     {
         ageDirection = Random.Range(0, 2) == 0 ? 1 : -1;
         age = ageDirection == 1 ? Random.Range(1, 25) : Random.Range(60, 79);
-        // Arrancamos la corutina que suma la edad
         StartCoroutine(AgeRoutine());
     }
 
@@ -37,11 +36,9 @@ public class SurvivorChar : MonoBehaviour
     {
         while (isAlive)
         {
-            yield return new WaitForSeconds(ageSpeed); // espera 1 segundo
-            age += ageDirection; // Puede sumar o restar
+            yield return new WaitForSeconds(ageSpeed); 
+            age += ageDirection; 
 
-
-            // Revisamos condiciones de muerte
             if (age >= 80 || age <= 0)
             {
                 Die();
@@ -51,26 +48,25 @@ public class SurvivorChar : MonoBehaviour
 
     public void SetAgeDirection(int dir)
     {
-        ageDirection = dir; // Llamado desde comida o fogata
+        ageDirection = dir; 
     }
 
     public void SetAgeSpeed(float newSpeed)
     {
-        ageSpeed = newSpeed; // Llamado desde fogata para ralentizar
+        ageSpeed = newSpeed;
     }
 
     private void Die()
     {
         isAlive = false;
         Debug.Log($"{survivorName} ha muerto a los {age} años.");
-        // Podés hacer animación de muerte o destruir el objeto
         // Destroy(gameObject);
     }
 
-    // Tupla de acceso rápido (consigna)
+    // tupla idea
     public (string name, int age) SurvivorData => (survivorName, age);
 
-    // Ejemplo de generator que devuelve eventos de este survivor (IEnumerable)
+    // generator que devuelva eventos
     public IEnumerable<string> GetEvents()
     {
         foreach (var e in events)

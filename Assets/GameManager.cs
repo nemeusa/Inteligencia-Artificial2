@@ -5,72 +5,67 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
-    [Header("Prefabs")]
     public GameObject survivorPrefab;
 
-    [Header("Config")]
     public int maxSurvivors = 8;
     public int maxCampfires = 4;
 
     public List<Transform> spawnPoints;
     public List<Transform> freeSpawnPoints;
 
-    // Lista concreta que también implementa IEnumerable<Survivor>
     public List<SurvivorChar> survivors = new List<SurvivorChar>();
 
-    private float gameDuration = 300f; // 5 minutos
+    private float gameDuration = 300f;
 
     void Start()
     {
         freeSpawnPoints = new List<Transform>(spawnPoints);
 
-        // Lanzamos la coroutine (time-slicing)
-        //StartCoroutine(SpawnSurvivorsCoroutine());
-        for (int i = 0; i < 3; i++)
+        //for (int i = 0; i < 3; i++)
+        //{
+        //    SpawnSurvivor();
+        //}
+
+        if (survivors.Count <= maxSurvivors || freeSpawnPoints.Count == 0) StartCoroutine(SpawnSurvivorDefiinitivo((List<SurvivorChar> finalList) =>
         {
-            SpawnSurvivor();
-        }
+            Debug.Log("Terminó el spawneo. Survivors creados: " + finalList.Count);
+            foreach (var s in finalList)
+                Debug.Log($"- {s.survivorName} ({s.age})");
+        }));
     }
 
     private void Update()
     {
-        //StartCoroutine(SpawnSurvivorCoroutine());
     }
 
-    // -------------------------
-    // Time-slicing: coroutine que spawnea de a poco
-    // -------------------------
+    
+    //public void SpawnSurvivor()
+    //{
+    //    if (survivors.Count >= maxSurvivors)
+    //    {
+    //        Debug.Log("hay muchos sobrevivientes");
+    //        return;
+    //    }
 
-    public void SpawnSurvivor()
-    {
-        if (survivors.Count >= maxSurvivors)
-        {
-            Debug.Log("Ya hay el máximo de sobrevivientes.");
-            return;
-        }
+    //    if (freeSpawnPoints.Count == 0)
+    //    {
+    //        Debug.LogWarning("no hay mas spawns");
+    //        return;
+    //    }
 
-        if (freeSpawnPoints.Count == 0)
-        {
-            Debug.LogWarning("No hay puntos de spawn asignados.");
-            return;
-        }
+    //    int index = Random.Range(0, freeSpawnPoints.Count);
 
-        int index = Random.Range(0, freeSpawnPoints.Count);
+    //    Transform spawn = freeSpawnPoints[index];
 
-        // Elegir un spawn random
-        Transform spawn = freeSpawnPoints[index];
+        
+    //    GameObject survivorObj = Instantiate(survivorPrefab, spawn.position, Quaternion.identity);
 
-        // Instanciar
-        GameObject survivorObj = Instantiate(survivorPrefab, spawn.position, Quaternion.identity);
+    //    SurvivorChar survivor = survivorObj.GetComponent<SurvivorChar>();
+    //    survivor.survivorName = "Survivor " + Random.Range(1, 100);
 
-        // Nombre random
-        SurvivorChar survivor = survivorObj.GetComponent<SurvivorChar>();
-        survivor.survivorName = "Survivor " + Random.Range(1, 100);
-
-        // Agregar a la lista
-        survivors.Add(survivor);
-        freeSpawnPoints.RemoveAt(index);
-    }
+    //    survivors.Add(survivor);
+    //    freeSpawnPoints.RemoveAt(index);
+    //}
 
     //IEnumerator SpawnSurvivorCoroutine(System.Action<List<int>> callback)
     //{
@@ -91,16 +86,46 @@ public class GameManager : MonoBehaviour
     //    callback(collection);
     //}
 
-    //IEnumerator SpawnSurvivorDefiinitivo(System.Action<List<int>> callback)
-    //{
+    IEnumerator SpawnSurvivorDefiinitivo(System.Action<List<SurvivorChar>> callback)
+    {
+        List<SurvivorChar> collection = new List<SurvivorChar>();
 
-    //}
+        int count = maxSurvivors;
+
+        while (count > 0)
+        {
+            SurvivorChar newSurvivor = SpawnOneSurvivor();
+            collection.Add(newSurvivor);
+
+            count--;
+
+            var spawnInterval = Random.Range(5, 10);
+
+            yield return new WaitForSeconds(spawnInterval);
+        }
+
+        callback(collection);
+    }
+
+    private SurvivorChar SpawnOneSurvivor()
+    {
+        int index = Random.Range(0, freeSpawnPoints.Count);
+        Transform spawn = spawnPoints[index];
+
+        GameObject obj = Instantiate(survivorPrefab, spawn.position, Quaternion.identity);
+        SurvivorChar survivor = obj.GetComponent<SurvivorChar>();
+        survivor.survivorName = "Survivor " + Random.Range(1, 100);
+
+        survivors.Add(survivor);
+        freeSpawnPoints.RemoveAt(index);
+
+        return survivor;
+    }
 
     IEnumerable<(string name, int age)> GenerateSurvivorData()
     {
         for (int i = 0; i < maxSurvivors; i++)
         {
-            // yield es un generator: la secuencia se crea perezosamente
             yield return ($"Survivor_{i + 1}", Random.Range(10, 40));
         }
     }
@@ -113,70 +138,65 @@ public class GameManager : MonoBehaviour
 
     public IEnumerable<SurvivorChar> GetAliveSurvivors()
     {
-        // Where es del Grupo 1
+        //grupo 1 linq
         return survivors.Where(s => s.isAlive);
     }
 
-    // Devuelve nombres ordenados por edad (Group2: OrderBy, Group1: Where, luego Select)
     public IEnumerable<string> GetNamesOrderedByAge()
     {
-        // OrderBy está en Grupo 2; Select en Grupo 1
+        //grupo 2 linq
         return GetAliveSurvivors()
-            .OrderBy(s => s.age)   // Grupo 2
-            .Select(s => s.survivorName); // Grupo 1
+            .OrderBy(s => s.age)  
+            .Select(s => s.survivorName); 
     }
 
-    // Devuelve top 3 más jóvenes como List (uso de Take y ToList -> Grupo1 y Grupo3)
     public List<SurvivorChar> GetYoungestThree()
     {
+        //grupo 3 linq
         return GetAliveSurvivors()
-            .OrderBy(s => s.age)    // Grupo 2
-            .Take(3)                // Grupo 1: Take
-            .ToList();              // Grupo 3: ToList
+            .OrderBy(s => s.age)    
+            .Take(3)                
+            .ToList();              
     }
 
-    // Usa SelectMany para juntar todos los eventos de todos los survivores (Grupo 2: SelectMany)
     public IEnumerable<string> GetAllEvents()
     {
-        // SelectMany es Grupo 2
+        //grupo 2 linq
         return survivors.SelectMany(s => s.GetEvents());
     }
 
-    // Aggregate: suma de edades de los vivos
+    // aggregate: sumar las edades
     public int SumAgesAggregate()
     {
         return GetAliveSurvivors()
             .Select(s => s.age)
-            .Aggregate(0, (acc, next) => acc + next); // Aggregate explícito
+            .Aggregate(0, (acc, next) => acc + next); 
     }
 
-    // Any ejemplo (Grupo 3)
     public bool AnySurvivorAlive()
     {
-        return survivors.Any(s => s.isAlive); // Grupo 3
+        // grupo 3 linq
+        return survivors.Any(s => s.isAlive); 
     }
 
-    // -------------------------
-    // Ejemplo de uso en EndGame (tipo anónimo + orden y lista final)
-    // -------------------------
+  
     public void EndGame()
     {
-        // Genero la lista final usando IEnumerable + LINQ
         var finalOrdered = GetAliveSurvivors()
-            .OrderByDescending(s => s.age) // Grupo 2
-            .Select(s => new { s.survivorName, s.age, Alive = s.isAlive }) // tipo anónimo
-            .ToList(); // Grupo 3
+            .OrderByDescending(s => s.age) 
+            .Select(s => new { s.survivorName, s.age, Alive = s.isAlive }) // anonimous type
+            .ToList(); 
 
-        // Mostrar resultado
+        // mostrar resultado
         foreach (var r in finalOrdered)
         {
             Debug.Log($"Nombre: {r.survivorName}, Edad: {r.age}, Vivo: {r.Alive}");
         }
 
-        // Aggregate
+        // aggregate
         Debug.Log("Vitalidad total (aggregate): " + SumAgesAggregate());
 
-        // SelectMany demo
+        // selectMany demo
         foreach (var ev in GetAllEvents())
             Debug.Log("Evento: " + ev);
     }
