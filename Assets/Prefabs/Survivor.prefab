@@ -447,6 +447,7 @@ MonoBehaviour:
   isAlive: 1
   ageDirection: 0
   ageSpeed: 1
+  baseAgeChangeTime: 0.1
   textName: {fileID: 8306268874586043926}
   textAge: {fileID: 6120609003890792377}
   events: []

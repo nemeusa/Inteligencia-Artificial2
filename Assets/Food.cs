@@ -4,8 +4,6 @@ using UnityEngine;
 
 public class Food : MonoBehaviour
 {
-    [SerializeField] float lifeTime = 10f; 
-
     private void Start()
     {
     }

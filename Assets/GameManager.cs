@@ -8,7 +8,10 @@ using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
+    public static GameManager Instance;
+    
     [SerializeField] private TMP_Text finalReportText; 
+    [SerializeField] private TMP_Text finalReportTextEvents; 
     private bool gameEnded = false;
 
     public GameObject survivorPrefab;
@@ -24,22 +27,27 @@ public class GameManager : MonoBehaviour
     private float gameDuration = 300f;
 
     [Header("Comida")]
-    [SerializeField] GameObject foodPrefab;
-    [SerializeField] List<Transform> foodSpawnPoints;
+    [SerializeField] GameObject foodPrefab, campFirePrefab;
+    [SerializeField] Transform foodSpawnPoint, campFireSpawnPoint;
     [SerializeField] Button spawnFoodButton;
+    [SerializeField] Button spawnCampFireButton;
 
     [Header("Clicker")]
-    public int clicksNeeded = 3;
-    private int currentClicks = 0; 
+    public int clicksNeededFood = 3;
+    public int clicksNeededCampFire = 3;
+    private int currentClicksFood, currentClicksCampFire;
+
+    [SerializeField] TMP_Text clicksTextFood;
+    [SerializeField] TMP_Text clicksTextFire;
+
+    GameObject currentFood, currentCampFire;
+
+    public List<CampFire> activeCampfires = new List<CampFire>();
 
     void Start()
     {
+        Instance = this;
         freeSpawnPoints = new List<Transform>(spawnPoints);
-
-        //for (int i = 0; i < 3; i++)
-        //{
-        //    SpawnSurvivor();
-        //}
 
         if (survivors.Count <= maxSurvivors || freeSpawnPoints.Count == 0) StartCoroutine(SpawnSurvivorDefiinitivo((List<SurvivorChar> finalList) =>
         {
@@ -50,11 +58,22 @@ public class GameManager : MonoBehaviour
 
         if (spawnFoodButton != null)
             spawnFoodButton.onClick.AddListener(OnClickSpawnFood);
+
+        if (spawnCampFireButton != null)
+            spawnCampFireButton.onClick.AddListener(OnClickSpawnCampFire);
     }
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.E)) EndGame2();
+        clicksTextFood.text = $"{clicksNeededFood - currentClicksFood}";
+        clicksTextFire.text = $"{clicksNeededCampFire - currentClicksCampFire}";
+        //if (!gameEnded) EndGame2();
+
+        if (currentFood == null) spawnFoodButton.gameObject.SetActive(true);
+        if (currentCampFire == null) spawnCampFireButton.gameObject.SetActive(true);
+
+        if(Input.GetKeyUp(KeyCode.Mouse0) && currentFood != null) currentFood.transform.position = foodSpawnPoint.position;
+        if(Input.GetKeyUp(KeyCode.Mouse0) && currentCampFire != null) currentCampFire.transform.position = campFireSpawnPoint.position;
     }
 
     IEnumerator SpawnSurvivorDefiinitivo(System.Action<List<SurvivorChar>> callback)
@@ -98,6 +117,18 @@ public class GameManager : MonoBehaviour
         freeSpawnPoints.RemoveAt(index);
 
         return survivor;
+    }
+
+    public IEnumerable<string> GetNamesOrderedByAgeGenerator()
+    {
+        var ordered = survivors
+            .Where(s => s.isAlive)          // Grupo 1
+            .OrderBy(s => s.age)                // Grupo 2
+            .Select(s => s.survivorName)       // Grupo 1
+            .ToList();                       // Grupo 3
+
+        foreach (var name in ordered)
+            yield return name;          // generator
     }
 
     IEnumerable<(string name, int age)> GenerateSurvivorData()
@@ -151,11 +182,26 @@ public class GameManager : MonoBehaviour
         return survivors.Any(s => s.isAlive); 
     }
 
+    public (int joven, int adulto, int mayor) CountSurvivorsByAgeRangeTuple() //Tupla
+    {
+        //aggregate: ver edad
+        return GetAliveSurvivors()
+            .Aggregate((joven: 0, adulto: 0, mayor: 0), (acc, s) =>
+            {
+                if (s.age <= 20)
+                    acc.joven++;
+                else if (s.age <= 50 && s.age > 20)
+                    acc.adulto++;
+                else
+                    acc.mayor++;
 
-    void EndGame2()
+                return acc;
+            });
+    }
+
+    public void EndGame2()
     {
         if (gameEnded) return; 
-        gameEnded = true;
 
         var survivorsData = survivors.Select(s => new
         {
@@ -164,8 +210,22 @@ public class GameManager : MonoBehaviour
             Alive = s.isAlive
         }).ToList();
 
+        var counts = CountSurvivorsByAgeRangeTuple();
+
+
+
         StringBuilder sb = new StringBuilder();
+        StringBuilder sbEvents = new StringBuilder();
         sb.AppendLine("=== RESULTADO FINAL ===");
+        sb.AppendLine($"Joven: {counts.joven}, Adulto: {counts.adulto}, Mayor: {counts.mayor}");
+        var youngest = GetYoungestThree();
+        foreach (var s in youngest) sb.AppendLine($"Uno de los más jóvenes: {s.survivorName} ({s.age})");
+        foreach (var s in survivors)
+        {
+            var data = s.SurvivorData;   // tupla
+            string status = s.isAlive ? "VIVO" : "MUERTO";
+            sb.AppendLine($"{data.name} | Edad: {data.age} | {status}");
+        }
         sb.AppendLine($"Tiempo de juego: {Time.time:F1} seg");
         sb.AppendLine($"Suma total de edades: {SumAgesAggregate()}");
         sb.AppendLine();
@@ -180,38 +240,66 @@ public class GameManager : MonoBehaviour
         sb.AppendLine("Ordenados por edad:");
         sb.AppendLine(string.Join(", ", GetNamesOrderedByAge()));
 
-        finalReportText.text = sb.ToString();
+        sbEvents.AppendLine("=== EVENTOS ===");
+        foreach (var ev in GetAllEvents()) sbEvents.AppendLine(ev);
 
-        gameEnded = false;
+            finalReportText.text = sb.ToString();
+            finalReportTextEvents.text = sbEvents.ToString();
+
+        gameEnded = true;
     }
 
     void OnClickSpawnFood()
     {
-        currentClicks++;
+        currentClicksFood++;
 
-        if (currentClicks >= clicksNeeded)
+        if (currentClicksFood >= clicksNeededFood)
         {
             SpawnFood();
-            currentClicks = 0;
+            currentClicksFood = 0;
+            clicksNeededFood++;
+        }
+    }
+    void OnClickSpawnCampFire()
+    {
+        currentClicksCampFire++;
+
+        if (currentClicksCampFire >= clicksNeededCampFire)
+        {
+            SpawnCampFire();
+            currentClicksCampFire = 0;
+            clicksNeededCampFire++;
         }
     }
 
     void SpawnFood()
     {
-        if (foodSpawnPoints.Count == 0 || foodPrefab == null) return;
+        if ( foodPrefab == null) return;
 
-        int index = Random.Range(0, foodSpawnPoints.Count);
-        Transform spawnPoint = foodSpawnPoints[index];
+        currentFood = Instantiate(foodPrefab, foodSpawnPoint.position, Quaternion.identity);
+        Debug.Log("Comida spawneada");
+        if (currentFood != null) spawnFoodButton.gameObject.SetActive(false);
+    }
 
-        Instantiate(foodPrefab, spawnPoint.position, Quaternion.identity);
-        Debug.Log("Comida spawneada!");
+    void SpawnCampFire()
+    {
+        if (campFirePrefab == null) return;
+
+        currentCampFire = Instantiate(campFirePrefab, campFireSpawnPoint.position, Quaternion.identity);
+        Debug.Log("Fogata spawneada");
+        if (currentCampFire != null) spawnCampFireButton.gameObject.SetActive(false);
+    }
+
+    public int GetActiveCampfireCount()
+    {
+        return activeCampfires.Count;
     }
 
     private List<string> allNames = new List<string>()
     {
         "Aiden","Lucas","Mateo","Benjamin","Isabella","Emma","Sophia","Mia","Amelia","Olivia",
         "Liam","Noah","Ethan","Mason","Logan","James","Oliver","Elijah","Alexander","Jacob",
-        "Michael","Daniel","Henry","Sebastian","Jack","Levi","Owen","Wyatt","Julian","Leo",
+        "Michael","Daniel","Henry", "feli", "breck","Sebastian","Jack","Levi","Owen","Wyatt","Julian","Leo",
         "Victoria","Grace","Aria","Scarlett","Chloe","Layla","Denise","Hannah","Nora","Stella",
         "Aurora","Penelope","Hazel","Ellie","Camila","Luna","Riley","Savannah","Violet","Nova"
     };
