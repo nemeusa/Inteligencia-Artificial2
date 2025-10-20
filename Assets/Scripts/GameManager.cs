@@ -44,6 +44,8 @@ public class GameManager : MonoBehaviour
 
     public List<CampFire> activeCampfires = new List<CampFire>();
 
+    public float multiplicatorTime;
+
     void Start()
     {
         Instance = this;
@@ -74,6 +76,8 @@ public class GameManager : MonoBehaviour
 
         if(Input.GetKeyUp(KeyCode.Mouse0) && currentFood != null) currentFood.transform.position = foodSpawnPoint.position;
         if(Input.GetKeyUp(KeyCode.Mouse0) && currentCampFire != null) currentCampFire.transform.position = campFireSpawnPoint.position;
+
+        probando();
     }
 
     IEnumerator SpawnSurvivorDefiinitivo(System.Action<List<SurvivorChar>> callback)
@@ -155,7 +159,7 @@ public class GameManager : MonoBehaviour
 
     public List<SurvivorChar> GetYoungestThree()
     {
-        //grupo 3 linq
+        //usa los 3 grupos de linq
         return GetAliveSurvivors()
             .OrderBy(s => s.age)    
             .Take(3)                
@@ -182,21 +186,32 @@ public class GameManager : MonoBehaviour
         return survivors.Any(s => s.isAlive); 
     }
 
-    public (int joven, int adulto, int mayor) CountSurvivorsByAgeRangeTuple() //Tupla
+    public (int baby,int joven, int adulto, int mayor) CountSurvivorsByAgeRangeTuple() //Tupla
     {
+        //trabajar aca el cambio de sprites segun la edad (no fue una buenas idea xd)
         //aggregate: ver edad
+        //tmb puedo hacer que mientras mas jovenes y adultos haya mayor va a ser el rendimiento de la aldea o la velocidad con la que se crean las cosas
         return GetAliveSurvivors()
-            .Aggregate((joven: 0, adulto: 0, mayor: 0), (acc, s) =>
+            .Aggregate((baby: 0, joven: 0, adulto: 0, mayor: 0), (acc, s) =>
             {
                 if (s.age <= 20)
+                    acc.baby++;
+                else if (s.age <= 30 && s.age > 20)
                     acc.joven++;
-                else if (s.age <= 50 && s.age > 20)
+                else if (s.age <= 50 && s.age > 30)
                     acc.adulto++;
                 else
                     acc.mayor++;
 
                 return acc;
             });
+    }
+
+    void probando()
+    {
+        var counts = CountSurvivorsByAgeRangeTuple();
+
+        multiplicatorTime = counts.joven + counts.adulto;
     }
 
     public void EndGame2()
