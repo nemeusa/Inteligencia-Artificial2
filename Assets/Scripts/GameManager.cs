@@ -46,6 +46,12 @@ public class GameManager : MonoBehaviour
 
     public float multiplicatorTime;
 
+    [SerializeField] AudioSource _myAudioSource;
+
+    [SerializeField] AudioClip _babySong, _oldSong;
+
+    [SerializeField] TMP_Text avisoSounds;
+
     void Start()
     {
         Instance = this;
@@ -151,10 +157,21 @@ public class GameManager : MonoBehaviour
 
     public IEnumerable<string> GetNamesOrderedByAge()
     {
+        var col = GetAliveSurvivors()
+            .OrderBy(s => s.age)
+            .Select(s => s.survivorName + "(" + s.age + ")");
+
+        if (col.Any())
+        {
+            yield return null;
+        }
+
+        foreach (var item in col)
+        {
+            yield return item;
+
+        }
         //grupo 2 linq
-        return GetAliveSurvivors()
-            .OrderBy(s => s.age)  
-            .Select(s => s.survivorName + "(" + s.age + ")"); 
     }
 
     public List<SurvivorChar> GetYoungestThree()
@@ -186,23 +203,31 @@ public class GameManager : MonoBehaviour
         return survivors.Any(s => s.isAlive); 
     }
 
-    public (int baby,int joven, int adulto, int mayor) CountSurvivorsByAgeRangeTuple() //Tupla
+    public (bool baby,int joven, int adulto, AudioClip anciano) CountSurvivorsByAgeRangeTuple() //Tupla
     {
         //trabajar aca el cambio de sprites segun la edad (no fue una buenas idea xd)
         //aggregate: ver edad
         //tmb puedo hacer que mientras mas jovenes y adultos haya mayor va a ser el rendimiento de la aldea o la velocidad con la que se crean las cosas
+        //spawnear una mamadera o pastillas para los bebes y los ancianos
+        // que suene un sonido de bebe o de viejo cuando se conviertan en eso
         return GetAliveSurvivors()
-            .Aggregate((baby: 0, joven: 0, adulto: 0, mayor: 0), (acc, s) =>
+            .Aggregate((baby: false, joven: 0, adulto: 0, anciano: _oldSong), (acc, s) =>
             {
+                //int babyCount = 0;
+                //if (s.age <= 20)
+                //    acc.baby = _babySong[babyCount <= _babySong.Length ? babyCount++ : babyCount = 0];
                 if (s.age <= 20)
-                    acc.baby++;
-                else if (s.age <= 30 && s.age > 20)
+                    acc.baby = true;
+
+                else if (s.age > 50)
+                    acc.anciano = _oldSong;
+
+                 if (s.age <= 30 && s.age > 20)
                     acc.joven++;
+
                 else if (s.age <= 50 && s.age > 30)
                     acc.adulto++;
-                else
-                    acc.mayor++;
-
+                
                 return acc;
             });
     }
@@ -212,6 +237,39 @@ public class GameManager : MonoBehaviour
         var counts = CountSurvivorsByAgeRangeTuple();
 
         multiplicatorTime = counts.joven + counts.adulto;
+
+        StartCoroutine(ruido());
+    }
+
+    IEnumerator ruido()
+    {
+        var counts = CountSurvivorsByAgeRangeTuple();
+
+        yield return new WaitForSeconds(3);
+
+        if (counts.baby)
+        {
+            //int babyCount = 0;
+            //_myAudioSource.PlayOneShot(_babySong[babyCount <= _babySong.Length ? babyCount++ : babyCount = 0]);
+            _myAudioSource.PlayOneShot(_babySong);
+            avisoSounds.text = "ruido de bebe llorando: " + _babySong;
+        }
+        //AudioClip clip = counts.baby;
+        //yield return new WaitForSeconds(3);
+        //Debug.Log("me veo");
+        //if (clip != null)
+        //{
+        //    Debug.Log("no me veo");
+        //    _myAudioSource.PlayOneShot(clip);
+        //    avisoSounds.text = "ruido de bebe llorando: " + clip;
+
+        //}
+        //yield return new WaitForSeconds(1);
+        //if (counts.anciano != null)
+        //{
+        //    _myAudioSource.PlayOneShot(counts.anciano);
+        //    avisoSounds.text = "ruido de viejo full molesto: " + counts.anciano;
+        //}
     }
 
     public void EndGame2()
@@ -232,7 +290,7 @@ public class GameManager : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         StringBuilder sbEvents = new StringBuilder();
         sb.AppendLine("=== RESULTADO FINAL ===");
-        sb.AppendLine($"Joven: {counts.joven}, Adulto: {counts.adulto}, Mayor: {counts.mayor}");
+        //sb.AppendLine($"Joven: {counts.joven}, Adulto: {counts.adulto}, Mayor: {counts.mayor}");
         var youngest = GetYoungestThree();
         foreach (var s in youngest) sb.AppendLine($"Uno de los más jóvenes: {s.survivorName} ({s.age})");
         foreach (var s in survivors)
