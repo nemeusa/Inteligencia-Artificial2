@@ -52,10 +52,20 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] TMP_Text avisoSounds;
 
+    [SerializeField] float intervalo = 3;
+    float temporizador = 0;
+
+    [SerializeField] Button _orderAgesButton;
+    bool _orderAgesBool;
+
+    GameTimer _gameTimer;
+
     void Start()
     {
+        Application.targetFrameRate = 120;
         Instance = this;
         freeSpawnPoints = new List<Transform>(spawnPoints);
+        _gameTimer = GetComponent<GameTimer>();
 
         if (survivors.Count <= maxSurvivors || freeSpawnPoints.Count == 0) StartCoroutine(SpawnSurvivorDefiinitivo((List<SurvivorChar> finalList) =>
         {
@@ -69,13 +79,16 @@ public class GameManager : MonoBehaviour
 
         if (spawnCampFireButton != null)
             spawnCampFireButton.onClick.AddListener(OnClickSpawnCampFire);
+
+        _orderAgesButton.image.color = Color.gray;
     }
 
     private void Update()
     {
+        if (_gameTimer.hasWon) return;
+
         clicksTextFood.text = $"{clicksNeededFood - currentClicksFood}";
         clicksTextFire.text = $"{clicksNeededCampFire - currentClicksCampFire}";
-        //if (!gameEnded) EndGame2();
 
         if (currentFood == null) spawnFoodButton.gameObject.SetActive(true);
         if (currentCampFire == null) spawnCampFireButton.gameObject.SetActive(true);
@@ -83,11 +96,167 @@ public class GameManager : MonoBehaviour
         if(Input.GetKeyUp(KeyCode.Mouse0) && currentFood != null) currentFood.transform.position = foodSpawnPoint.position;
         if(Input.GetKeyUp(KeyCode.Mouse0) && currentCampFire != null) currentCampFire.transform.position = campFireSpawnPoint.position;
 
-        probando();
+        ageManager();
+
+        if (survivors.Count >= maxSurvivors && !_orderAgesBool)
+        {
+            _orderAgesButton.image.color = Color.green;
+            _orderAgesBool = true;
+        }
     }
+
+    public void ArrangeByAgeDescendingButton()
+    {
+        //se usa como boton, usa los 3 grupos de linq
+        if (!_orderAgesBool) return;
+
+        var ordered = survivors
+            .Where(s => s.isAlive)
+            .OrderByDescending(s => s.age)
+            .ToList();
+
+        int index = 0;
+
+        foreach (var survivor in ordered)
+        {
+            if (index >= spawnPoints.Count)
+                break;
+
+            survivor.transform.position = spawnPoints[index].position;
+            index++;
+        }
+    }
+
+    public IEnumerable<string> GetNamesOrderedByAge()
+    {
+        //cumple con los 3 grupos de linq y usa generator
+        var col = survivors.Where(s => s.isAlive)
+            .OrderBy(s => s.age)
+            .Select(s => s.survivorName + "(" + s.age + ")");
+
+        if (col.Any())
+        {
+            yield return null;
+        }
+
+        foreach (var item in col)
+        {
+            yield return item;
+
+        }
+    }
+
+    public List<SurvivorChar> GetYoungestThree()
+    {
+        //usa los 3 grupos de linq
+        return survivors.Where(s => s.isAlive)
+            .OrderBy(s => s.age)    
+            .Take(3)                
+            .ToList();              
+    }
+
+
+    public (bool baby,int joven, int adulto, AudioClip anciano) CountSurvivorsByAgeRangeTuple() //Tupla
+    {
+        //Agregatte y tupla
+        return survivors.Where(s => s.isAlive)
+            .Aggregate((baby: false, joven: 0, adulto: 0, anciano: _oldSong), (acc, s) =>
+            {
+                if (s.age <= 10)
+                    acc.baby = true;
+
+                else if (s.age > 50)
+                    acc.anciano = _oldSong;
+
+                 if (s.age <= 30 && s.age > 20)
+                    acc.joven++;
+
+                else if (s.age <= 50 && s.age > 30)
+                    acc.adulto++;
+                
+                return acc;
+            });
+    }
+
+    void ageManager()
+    {
+        //aca uso el agregatte y la tupla
+        var counts = CountSurvivorsByAgeRangeTuple();
+
+        multiplicatorTime = counts.joven + counts.adulto;
+
+        if (counts.baby)
+        {
+            temporizador += Time.deltaTime;
+
+            if (temporizador >= intervalo)
+            {
+                _myAudioSource.PlayOneShot(_babySong);
+                avisoSounds.text = "**ruido de bebe llorando**";
+                temporizador = 0f;
+            }
+        }
+        else if (!counts.baby && temporizador > 0)
+        {
+            avisoSounds.text = "no hay ruido";
+            temporizador = 0f;
+        }
+    }
+
+    public void EndGame2()
+    {
+        if (gameEnded) return; 
+
+        var survivorsData = survivors.Select(s => new
+        {
+            s.survivorName,
+            s.age,
+            Alive = s.isAlive
+        }).ToList();
+
+        var counts = CountSurvivorsByAgeRangeTuple();
+
+
+
+        StringBuilder sb = new StringBuilder();
+        StringBuilder sbEvents = new StringBuilder();
+        sb.AppendLine("=== RESULTADO FINAL ===");
+        //sb.AppendLine($"Joven: {counts.joven}, Adulto: {counts.adulto}, Mayor: {counts.mayor}");
+        var youngest = GetYoungestThree();
+        foreach (var s in youngest) sb.AppendLine($"Uno de los más jóvenes: {s.survivorName} ({s.age})");
+        foreach (var s in survivors)
+        {
+            var data = s.SurvivorData;   // tupla
+            string status = s.isAlive ? "VIVO" : "MUERTO";
+            sb.AppendLine($"{data.name} | Edad: {data.age} | {status}");
+        }
+        sb.AppendLine($"Tiempo de juego: {Time.time:F1} seg");
+        //sb.AppendLine($"Suma total de edades: {SumAgesAggregate()}");
+        sb.AppendLine();
+        sb.AppendLine("Sobrevivientes:");
+        foreach (var s in survivorsData)
+        {
+            string status = s.Alive ? "VIVO" : "MUERTO";
+            sb.AppendLine($"{s.survivorName} | Edad: {s.age} | {status}");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Ordenados por edad:");
+        sb.AppendLine(string.Join(", ", GetNamesOrderedByAge()));
+
+        //sbEvents.AppendLine("=== EVENTOS ===");
+        //foreach (var ev in GetAllEvents()) sbEvents.AppendLine(ev);
+
+            finalReportText.text = sb.ToString();
+            finalReportTextEvents.text = sbEvents.ToString();
+
+        gameEnded = true;
+    }
+
 
     IEnumerator SpawnSurvivorDefiinitivo(System.Action<List<SurvivorChar>> callback)
     {
+        //Time Slicing
         List<SurvivorChar> collection = new List<SurvivorChar>();
 
         int count = maxSurvivors;
@@ -129,198 +298,6 @@ public class GameManager : MonoBehaviour
         return survivor;
     }
 
-    public IEnumerable<string> GetNamesOrderedByAgeGenerator()
-    {
-        var ordered = survivors
-            .Where(s => s.isAlive)          // Grupo 1
-            .OrderBy(s => s.age)                // Grupo 2
-            .Select(s => s.survivorName)       // Grupo 1
-            .ToList();                       // Grupo 3
-
-        foreach (var name in ordered)
-            yield return name;          // generator
-    }
-
-    IEnumerable<(string name, int age)> GenerateSurvivorData()
-    {
-        for (int i = 0; i < maxSurvivors; i++)
-        {
-            yield return ($"Survivor_{i + 1}", Random.Range(10, 40));
-        }
-    }
-
-    public IEnumerable<SurvivorChar> GetAliveSurvivors()
-    {
-        //grupo 1 linq
-        return survivors.Where(s => s.isAlive);
-    }
-
-    public IEnumerable<string> GetNamesOrderedByAge()
-    {
-        var col = GetAliveSurvivors()
-            .OrderBy(s => s.age)
-            .Select(s => s.survivorName + "(" + s.age + ")");
-
-        if (col.Any())
-        {
-            yield return null;
-        }
-
-        foreach (var item in col)
-        {
-            yield return item;
-
-        }
-        //grupo 2 linq
-    }
-
-    public List<SurvivorChar> GetYoungestThree()
-    {
-        //usa los 3 grupos de linq
-        return GetAliveSurvivors()
-            .OrderBy(s => s.age)    
-            .Take(3)                
-            .ToList();              
-    }
-
-    public IEnumerable<string> GetAllEvents()
-    {
-        //grupo 2 linq
-        return survivors.SelectMany(s => s.GetEvents());
-    }
-
-    // aggregate: sumar las edades
-    public int SumAgesAggregate()
-    {
-        return GetAliveSurvivors()
-            .Select(s => s.age)
-            .Aggregate(0, (acc, next) => acc + next); 
-    }
-
-    public bool AnySurvivorAlive()
-    {
-        // grupo 3 linq
-        return survivors.Any(s => s.isAlive); 
-    }
-
-    public (bool baby,int joven, int adulto, AudioClip anciano) CountSurvivorsByAgeRangeTuple() //Tupla
-    {
-        //trabajar aca el cambio de sprites segun la edad (no fue una buenas idea xd)
-        //aggregate: ver edad
-        //tmb puedo hacer que mientras mas jovenes y adultos haya mayor va a ser el rendimiento de la aldea o la velocidad con la que se crean las cosas
-        //spawnear una mamadera o pastillas para los bebes y los ancianos
-        // que suene un sonido de bebe o de viejo cuando se conviertan en eso
-        return GetAliveSurvivors()
-            .Aggregate((baby: false, joven: 0, adulto: 0, anciano: _oldSong), (acc, s) =>
-            {
-                //int babyCount = 0;
-                //if (s.age <= 20)
-                //    acc.baby = _babySong[babyCount <= _babySong.Length ? babyCount++ : babyCount = 0];
-                if (s.age <= 20)
-                    acc.baby = true;
-
-                else if (s.age > 50)
-                    acc.anciano = _oldSong;
-
-                 if (s.age <= 30 && s.age > 20)
-                    acc.joven++;
-
-                else if (s.age <= 50 && s.age > 30)
-                    acc.adulto++;
-                
-                return acc;
-            });
-    }
-
-    void probando()
-    {
-        var counts = CountSurvivorsByAgeRangeTuple();
-
-        multiplicatorTime = counts.joven + counts.adulto;
-
-        StartCoroutine(ruido());
-    }
-
-    IEnumerator ruido()
-    {
-        var counts = CountSurvivorsByAgeRangeTuple();
-
-        yield return new WaitForSeconds(3);
-
-        if (counts.baby)
-        {
-            //int babyCount = 0;
-            //_myAudioSource.PlayOneShot(_babySong[babyCount <= _babySong.Length ? babyCount++ : babyCount = 0]);
-            _myAudioSource.PlayOneShot(_babySong);
-            avisoSounds.text = "ruido de bebe llorando: " + _babySong;
-        }
-        //AudioClip clip = counts.baby;
-        //yield return new WaitForSeconds(3);
-        //Debug.Log("me veo");
-        //if (clip != null)
-        //{
-        //    Debug.Log("no me veo");
-        //    _myAudioSource.PlayOneShot(clip);
-        //    avisoSounds.text = "ruido de bebe llorando: " + clip;
-
-        //}
-        //yield return new WaitForSeconds(1);
-        //if (counts.anciano != null)
-        //{
-        //    _myAudioSource.PlayOneShot(counts.anciano);
-        //    avisoSounds.text = "ruido de viejo full molesto: " + counts.anciano;
-        //}
-    }
-
-    public void EndGame2()
-    {
-        if (gameEnded) return; 
-
-        var survivorsData = survivors.Select(s => new
-        {
-            s.survivorName,
-            s.age,
-            Alive = s.isAlive
-        }).ToList();
-
-        var counts = CountSurvivorsByAgeRangeTuple();
-
-
-
-        StringBuilder sb = new StringBuilder();
-        StringBuilder sbEvents = new StringBuilder();
-        sb.AppendLine("=== RESULTADO FINAL ===");
-        //sb.AppendLine($"Joven: {counts.joven}, Adulto: {counts.adulto}, Mayor: {counts.mayor}");
-        var youngest = GetYoungestThree();
-        foreach (var s in youngest) sb.AppendLine($"Uno de los más jóvenes: {s.survivorName} ({s.age})");
-        foreach (var s in survivors)
-        {
-            var data = s.SurvivorData;   // tupla
-            string status = s.isAlive ? "VIVO" : "MUERTO";
-            sb.AppendLine($"{data.name} | Edad: {data.age} | {status}");
-        }
-        sb.AppendLine($"Tiempo de juego: {Time.time:F1} seg");
-        sb.AppendLine($"Suma total de edades: {SumAgesAggregate()}");
-        sb.AppendLine();
-        sb.AppendLine("Sobrevivientes:");
-        foreach (var s in survivorsData)
-        {
-            string status = s.Alive ? "VIVO" : "MUERTO";
-            sb.AppendLine($"{s.survivorName} | Edad: {s.age} | {status}");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("Ordenados por edad:");
-        sb.AppendLine(string.Join(", ", GetNamesOrderedByAge()));
-
-        sbEvents.AppendLine("=== EVENTOS ===");
-        foreach (var ev in GetAllEvents()) sbEvents.AppendLine(ev);
-
-            finalReportText.text = sb.ToString();
-            finalReportTextEvents.text = sbEvents.ToString();
-
-        gameEnded = true;
-    }
 
     void OnClickSpawnFood()
     {
@@ -350,7 +327,7 @@ public class GameManager : MonoBehaviour
         if ( foodPrefab == null) return;
 
         currentFood = Instantiate(foodPrefab, foodSpawnPoint.position, Quaternion.identity);
-        Debug.Log("Comida spawneada");
+        //Debug.Log("Comida spawneada");
         if (currentFood != null) spawnFoodButton.gameObject.SetActive(false);
     }
 
@@ -359,7 +336,7 @@ public class GameManager : MonoBehaviour
         if (campFirePrefab == null) return;
 
         currentCampFire = Instantiate(campFirePrefab, campFireSpawnPoint.position, Quaternion.identity);
-        Debug.Log("Fogata spawneada");
+        //Debug.Log("Fogata spawneada");
         if (currentCampFire != null) spawnCampFireButton.gameObject.SetActive(false);
     }
 
@@ -376,4 +353,46 @@ public class GameManager : MonoBehaviour
         "Victoria","Grace","Aria","Scarlett","Chloe","Layla","Denise","Hannah","Nora","Stella",
         "Aurora","Penelope","Hazel","Ellie","Camila","Luna","Riley","Savannah","Violet","Nova"
     };
+
+
+    //public IEnumerable<string> GetNamesOrderedByAgeGenerator()
+    //{
+    //    // usa los 3 grupos de linq tengo que ver como usarla     
+    //    var ordered = survivors
+    //        .Where(s => s.isAlive)          // Grupo 1
+    //        .OrderBy(s => s.age)                // Grupo 2
+    //        .Select(s => s.survivorName)       // Grupo 1
+    //        .ToList();                       // Grupo 3
+
+    //    foreach (var name in ordered)
+    //        yield return name;          // generator
+    //}
+
+    //IEnumerable<(string name, int age)> GenerateSurvivorData()
+    //{
+    //    for (int i = 0; i < maxSurvivors; i++)
+    //    {
+    //        yield return ($"Survivor_{i + 1}", Random.Range(10, 40));
+    //    }
+    //}
+
+    //public IEnumerable<string> GetAllEvents()
+    //{
+    //    return survivors.SelectMany(s => s.GetEvents());
+    //}
+
+    // aggregate: sumar las edades
+    //public int SumAgesAggregate()
+    //{
+    //    return GetAliveSurvivors()
+    //        .Select(s => s.age)
+    //        .Aggregate(0, (acc, next) => acc + next); 
+    //}
+
+    //public bool AnySurvivorAlive()
+    //{
+    //    // grupo 3 linq
+    //    return survivors.Any(s => s.isAlive); 
+    //}
+
 }

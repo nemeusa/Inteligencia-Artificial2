@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
-using System;
 
 public class SurvivorChar : MonoBehaviour
 {
@@ -10,6 +9,7 @@ public class SurvivorChar : MonoBehaviour
     public string survivorName = "oñan";
     public int age;
     public bool isAlive = true;
+    public Transform ubication;
 
     [Header("Velocidad de edad")]
     public int ageDirection; 
@@ -39,7 +39,7 @@ public class SurvivorChar : MonoBehaviour
         bool isTall = ageDirection == 1 ? true : false;
 
         if (isTall) textAge.color = age >= 30 && age < 60 ? Color.yellow : age >= 60 && age < 70 ? naranja : age >= 70 ? Color.red : Color.green;
-        else textAge.color = age <= 50 && age > 20 ? Color.yellow : age < 20 && age > 10 ? naranja : age <= 10 ? Color.red : Color.green;
+        else textAge.color = age <= 50 && age > 20 ? Color.yellow : age <= 20 && age > 10 ? naranja : age <= 10 ? Color.red : Color.green;
 
     }
 
