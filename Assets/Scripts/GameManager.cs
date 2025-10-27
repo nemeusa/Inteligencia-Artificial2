@@ -196,7 +196,7 @@ public class GameManager : MonoBehaviour
                 temporizador = 0f;
             }
         }
-        else if (!counts.baby && temporizador > 0)
+        else if (!counts.baby)
         {
             avisoSounds.text = "no hay ruido";
             temporizador = 0f;
@@ -209,7 +209,7 @@ public class GameManager : MonoBehaviour
 
         var survivorsData = survivors.Select(s => new
         {
-            s.survivorName,
+            s.survivorName, // anonimous type
             s.age,
             Alive = s.isAlive
         }).ToList();
